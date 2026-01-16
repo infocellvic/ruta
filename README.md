@@ -1,2 +1,0 @@
-# ruta
-sistema de ruta
