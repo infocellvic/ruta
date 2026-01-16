@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cobranza Móvil</title>
+
+<style>
+body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f3f4f6}
+.view{display:none}
+header{background:#2ecc71;color:#fff;padding:16px;text-align:center;font-weight:600}
+.box{background:#fff;margin:16px;padding:16px;border-radius:14px}
+.btn{width:100%;padding:14px;margin:8px 0;border:none;border-radius:10px;font-size:16px}
+.admin{background:#111827;color:#fff}
+.cobrador{background:#2ecc71;color:#fff}
+.volver{background:#d1d5db}
+.whatsapp{background:#25D366;color:#fff}
+input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid #ddd}
+.item{background:#f1f5f9;padding:12px;border-radius:10px;margin-bottom:8px}
+.small{font-size:13px;color:#555}
+canvas{width:100%;border:1px solid #ddd;border-radius:10px}
+</style>
+</head>
+
+<body>
+
+<!-- INICIO -->
+<div id="inicioView" class="view">
+  <div class="box" style="text-align:center">
+    <h2>Cobranza Móvil</h2>
+    <p>💼 Promociones Culturales</p>
+    <button class="btn admin" onclick="show('adminView')">ADMIN</button>
+    <button class="btn cobrador" onclick="entrarCobrador()">COBRADOR</button>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminView" class="view">
+<header>Administrador</header>
+
+<div class="box">
+<h4>Alta de Clientes</h4>
+<input id="cNombre" placeholder="Nombre">
+<input id="cTel" placeholder="Teléfono">
+<button class="btn cobrador" onclick="addCliente()">Guardar</button>
+</div>
+
+<div class="box">
+<h4>Alta de Cobradores</h4>
+<input id="coNombre" placeholder="Nombre">
+<button class="btn admin" onclick="addCobrador()">Guardar</button>
+</div>
+
+<div class="box">
+<h4>Asignar Cliente a Cobrador</h4>
+<select id="asCliente"></select>
+<select id="asCobrador"></select>
+<button class="btn cobrador" onclick="asignarCliente()">Asignar</button>
+</div>
+
+<div class="box">
+<h4>Registrar Venta</h4>
+<select id="vCliente"></select>
+<input id="vConcepto" placeholder="Concepto">
+<input type="number" id="vTotal" placeholder="Total">
+<input type="number" id="vAbono" placeholder="Abono inicial (opcional)">
+<button class="btn cobrador" onclick="registrarVenta()">Registrar venta</button>
+</div>
+
+<button class="btn volver" onclick="show('inicioView')">Volver</button>
+</div>
+
+<!-- RUTA -->
+<div id="rutaView" class="view">
+<header>Clientes asignados</header>
+<div class="box" id="listaClientes"></div>
+<button class="btn volver" onclick="show('inicioView')">Salir</button>
+</div>
+
+<!-- CLIENTE -->
+<div id="clienteView" class="view">
+<header id="clienteHeader"></header>
+<div class="box" id="ventasCliente"></div>
+<button class="btn volver" onclick="volverRuta()">Volver</button>
+</div>
+
+<!-- COBRO -->
+<div id="cobroView" class="view">
+<header>Cobrar venta</header>
+<div class="box">
+<div id="infoVenta" class="small"></div>
+<input type="number" id="montoCobro" placeholder="Monto a cobrar">
+<button class="btn cobrador" onclick="registrarCobro()">Registrar cobro</button>
+</div>
+
+<div class="box">
+<h4>Historial de abonos</h4>
+<div id="historial"></div>
+</div>
+
+<button class="btn volver" onclick="volverCliente()">Volver</button>
+</div>
+
+<!-- COMPROBANTE -->
+<div id="comprobanteView" class="view">
+<header>Comprobante</header>
+<div class="box">
+<canvas id="comprobante" width="320" height="420"></canvas>
+<button class="btn whatsapp" onclick="enviarWhatsApp()">Enviar por WhatsApp</button>
+<button class="btn volver" onclick="volverRuta()">Finalizar</button>
+</div>
+</div>
+
+<script>
+/* INIT */
+show('inicioView');
+
+/* DATA */
+let clientes=[], cobradores=[], ventas=[], abonos=[];
+let cobradorActivo=null, clienteActual=null, ventaActual=null, ultimoAbono=null;
+
+/* NAV */
+function show(id){
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  document.getElementById(id).style.display='block';
+}
+
+/* ADMIN */
+function addCliente(){
+  clientes.push({id:Date.now(),nombre:cNombre.value,telefono:cTel.value,cobrador:null});
+  cNombre.value=cTel.value="";
+  renderAdmin();
+}
+function addCobrador(){
+  cobradores.push({id:Date.now(),nombre:coNombre.value});
+  coNombre.value="";
+  renderAdmin();
+}
+function asignarCliente(){
+  let c=clientes.find(x=>x.id==asCliente.value);
+  c.cobrador=asCobrador.value;
+  alert("Cliente asignado");
+}
+function registrarVenta(){
+  let total=+vTotal.value, abono=+vAbono.value||0;
+  ventas.push({
+    id:Date.now(),
+    cliente:vCliente.value,
+    concepto:vConcepto.value,
+    saldo:total-abono
+  });
+  vConcepto.value=vTotal.value=vAbono.value="";
+  alert("Venta registrada");
+}
+function renderAdmin(){
+  asCliente.innerHTML=vCliente.innerHTML=clientes.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
+  asCobrador.innerHTML=cobradores.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
+}
+
+/* COBRADOR */
+function entrarCobrador(){
+  cobradorActivo=cobradores[0]?.id||null; // demo
+  show('rutaView');renderRuta();
+}
+function renderRuta(){
+  let misClientes=clientes.filter(c=>c.cobrador==cobradorActivo);
+  listaClientes.innerHTML=misClientes.map(c=>{
+    let saldo=ventas.filter(v=>v.cliente==c.id).reduce((s,v)=>s+v.saldo,0);
+    return `<div class="item" onclick="abrirCliente(${c.id})">
+      <strong>${c.nombre}</strong><br>Saldo total: $${saldo}
+    </div>`;
+  }).join("") || "Sin clientes asignados";
+}
+function abrirCliente(id){
+  clienteActual=clientes.find(c=>c.id===id);
+  clienteHeader.innerText=clienteActual.nombre;
+  ventasCliente.innerHTML=ventas.filter(v=>v.cliente==id).map(v=>`
+    <div class="item" onclick="abrirVenta(${v.id})">
+      <strong>${v.concepto}</strong><br>Saldo: $${v.saldo}
+    </div>`).join("") || "Sin ventas";
+  show('clienteView');
+}
+function abrirVenta(id){
+  ventaActual=ventas.find(v=>v.id===id);
+  infoVenta.innerText=`${ventaActual.concepto} | Saldo: $${ventaActual.saldo}`;
+  renderHistorial();
+  show('cobroView');
+}
+function registrarCobro(){
+  let monto=+montoCobro.value;
+  if(!monto||monto<=0||monto>ventaActual.saldo){alert("Monto inválido");return;}
+  ventaActual.saldo-=monto;
+  ultimoAbono={monto,fecha:new Date().toLocaleString()};
+  abonos.push({venta:ventaActual.id,...ultimoAbono});
+  montoCobro.value="";
+  generarComprobante();
+}
+function renderHistorial(){
+  historial.innerHTML=abonos.filter(a=>a.venta==ventaActual.id)
+    .map(a=>`<div class="small">💰 $${a.monto} – ${a.fecha}</div>`).join("") || "Sin abonos";
+}
+
+/* COMPROBANTE */
+function generarComprobante(){
+  show('comprobanteView');
+  const c=document.getElementById("comprobante");
+  const ctx=c.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle="#000";
+  ctx.font="18px Arial";ctx.fillText("COMPROBANTE DE PAGO",40,30);
+  ctx.font="14px Arial";
+  ctx.fillText("Cobranza Móvil",20,70);
+  ctx.fillText("Promociones Culturales",20,90);
+  ctx.fillText("Cliente: "+clienteActual.nombre,20,130);
+  ctx.fillText("Concepto: "+ventaActual.concepto,20,160);
+  ctx.fillText("Pago: $"+ultimoAbono.monto,20,190);
+  ctx.fillText("Saldo restante: $"+ventaActual.saldo,20,220);
+  ctx.fillText("Fecha: "+ultimoAbono.fecha,20,260);
+  ctx.fillText("Gracias por su pago",70,320);
+}
+function enviarWhatsApp(){
+  const msg="Hola, te envío tu comprobante de pago. Gracias.";
+  window.open(`https://wa.me/${clienteActual.telefono}?text=${encodeURIComponent(msg)}`,"_blank");
+}
+function volverRuta(){show('rutaView');renderRuta();}
+function volverCliente(){show('clienteView');}
+</script>
+
+</body>
+</html>
